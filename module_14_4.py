@@ -1,3 +1,5 @@
+import os.path
+
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -52,7 +54,7 @@ async def get_formulas(call):
 
 @dp.message_handler(commands=['start'])
 async def start(message):
-    intiate_db()
+    initiate_db()
     await message.answer('Выбирете действие', reply_markup=kb)
 
 
@@ -100,10 +102,23 @@ async def send_calories(message, state):
 @dp.message_handler(text='Купить')
 async def get_buying_list(message):
     products = get_all_products()
+    if not products:
+        await message.answer('В базе данных пока нет продуктов')
+        return
     for product in products:
         product_id, title, description, price, image_path = product
-        with open(image_path, 'rb') as img:
-            await message.answer_photo(img, f'Название: {title} | Описание: {description} | Цена: {price}')
+        try:
+            if not os.path.exists(image_path):
+                raise FileNotFoundError(f'Файл {image_path} не найден')
+
+            with open(image_path, 'rb') as img:
+                await message.answer_photo(img, f'Название: {title} | Описание: {description} | Цена: {price}')
+        except FileNotFoundError as e:
+            await message.answer(f'Ошибка: Изображение для продукта "{title}" не найдено')
+            print(e)
+        except Exception as e:
+            await message.answer(f'Произошла ошибка при обработке продукта "{title}".')
+            print(f"Неизвестная ошибка для продукта {title}: {e}")
     await message.answer('Выберете продукт для покупки:', reply_markup=inline_menu)
 
 
