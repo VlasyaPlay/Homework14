@@ -1,4 +1,5 @@
 import os.path
+import re
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -144,8 +145,12 @@ async def sign_up(message):
 
 @dp.message_handler(state=RegistrationState.username)
 async def set_username(message, state):
-    if not is_included(message.text):
-        await state.update_data(username=message.text)
+    username = message.text
+    if not re.match(r'[a-zA-Z]+$', username):
+        await message.answer('Имя пользователя должно содержать только латинские буквы. Попробуйте снова.')
+        return
+    if not is_included(username):
+        await state.update_data(username=username)
         await message.answer('Введите свой email:')
         await RegistrationState.email.set()
     else:
@@ -155,14 +160,22 @@ async def set_username(message, state):
 
 @dp.message_handler(state=RegistrationState.email)
 async def set_email(message, state):
-    await state.update_data(email=message.text)
+    email = message.text
+    if not re.match(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', email):
+        await message.answer('Некорректный формат email. Попробуйте снова.')
+        return
+    await state.update_data(email=email)
     await message.answer('Введите свой возраст:')
     await RegistrationState.age.set()
 
 
 @dp.message_handler(state=RegistrationState.age)
 async def set_age(message, state):
-    await state.update_data(age=message.text)
+    age = message.text
+    if not age.isdigit() or int(age) <= 0:
+        await message.answer('Возраст должен быть положительным числом. Попробуйте снова.')
+        return
+    await state.update_data(age=age)
     data = await state.get_data()
     add_user(data['username'], data['email'], data['age'])
     await message.answer('Регистрация завершена!')
